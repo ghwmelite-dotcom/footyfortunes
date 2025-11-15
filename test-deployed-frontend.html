@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test FootyFortunes Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .success {
+            background: #1a4d2e;
+            border-color: #4ade80;
+        }
+        .error {
+            background: #4d1a1a;
+            border-color: #ef4444;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        pre {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 FootyFortunes Login Test</h1>
+    <p>This will test if the login functionality works with the deployed frontend.</p>
+
+    <button onclick="testDemoLogin()">Test Demo Login</button>
+    <button onclick="testRegistration()">Test New Registration</button>
+
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'https://footyfortunes-api.ghwmelite.workers.dev';
+
+        function addResult(success, title, message, data = null) {
+            const div = document.createElement('div');
+            div.className = `test-result ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <strong>${success ? '✅' : '❌'} ${title}</strong><br>
+                ${message}
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testDemoLogin() {
+            document.getElementById('results').innerHTML = '';
+            addResult(true, 'Testing...', 'Attempting demo login...');
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'demo@footyfortunes.com',
+                        password: 'Demo123!@#'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    addResult(true, 'Demo Login Successful!',
+                        `Logged in as: ${data.user.email}<br>User ID: ${data.user.id}`,
+                        data);
+                } else {
+                    addResult(false, 'Demo Login Failed',
+                        `Status: ${response.status}<br>Error: ${data.error || 'Unknown error'}`,
+                        data);
+                }
+            } catch (error) {
+                addResult(false, 'Request Failed', error.message);
+            }
+        }
+
+        async function testRegistration() {
+            document.getElementById('results').innerHTML = '';
+            addResult(true, 'Testing...', 'Attempting new user registration...');
+
+            const timestamp = Date.now();
+            const testEmail = `testuser${timestamp}@example.com`;
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: testEmail,
+                        password: 'TestPass123!@#',
+                        username: `user${timestamp}`,
+                        fullName: 'Test User'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    addResult(true, 'Registration Successful!',
+                        `Created account: ${testEmail}<br>User ID: ${data.user.id}`,
+                        data);
+
+                    // Try logging in immediately
+                    setTimeout(() => testLoginWithNewAccount(testEmail), 1000);
+                } else {
+                    addResult(false, 'Registration Failed',
+                        `Status: ${response.status}<br>Error: ${data.error || 'Unknown error'}`,
+                        data);
+                }
+            } catch (error) {
+                addResult(false, 'Request Failed', error.message);
+            }
+        }
+
+        async function testLoginWithNewAccount(email) {
+            addResult(true, 'Testing...', 'Attempting login with newly created account...');
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        password: 'TestPass123!@#'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    addResult(true, 'Login After Registration Successful!',
+                        `Logged in as: ${data.user.email}`,
+                        data);
+                } else {
+                    addResult(false, 'Login After Registration Failed',
+                        `Status: ${response.status}<br>Error: ${data.error || 'Unknown error'}`,
+                        data);
+                }
+            } catch (error) {
+                addResult(false, 'Request Failed', error.message);
+            }
+        }
+    </script>
+</body>
+</html>

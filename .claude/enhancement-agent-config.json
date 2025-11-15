@@ -1,0 +1,248 @@
+{
+  "projectName": "FootyFortunes - AI Football Betting Platform",
+  "version": "2.0.0",
+  "architecture": {
+    "backend": "Cloudflare Workers + D1 Database",
+    "frontend": "React 19 + TypeScript + Vite",
+    "styling": "Tailwind CSS",
+    "stateManagement": "Zustand",
+    "routing": "React Router DOM",
+    "auth": "JWT with bcrypt",
+    "ai": "Cloudflare AI Workers + OpenAI GPT"
+  },
+  "codePatterns": {
+    "backend": {
+      "location": "worker/src/",
+      "fileNaming": "camelCase.js",
+      "structure": {
+        "handlers": "worker/src/handlers/ - Route handlers organized by domain",
+        "middleware": "worker/src/middleware/ - Auth, rate limiting, validation",
+        "services": "worker/src/services/ - Business logic, external API calls",
+        "utils": "worker/src/utils/ - Helper functions, response formatters"
+      },
+      "patterns": {
+        "handler": "export async function handleFunctionName(request, env, user) { ... }",
+        "authRoute": "const user = await requireAuth(request, env);\nif (!user) return errorResponse('Unauthorized', 401);",
+        "adminRoute": "const user = await requireAdmin(request, env);\nif (!user) return errorResponse('Admin required', 403);",
+        "dbQuery": "const result = await env.DB.prepare('SELECT * FROM table WHERE id = ?').bind(id).all();",
+        "dbInsert": "await env.DB.prepare('INSERT INTO table (field) VALUES (?)').bind(value).run();",
+        "response": "return successResponse({ data });\nreturn errorResponse('Error message', statusCode);"
+      },
+      "errorHandling": "try { ... } catch (error) { console.error('Error:', error); return errorResponse('User-friendly message', 500); }"
+    },
+    "frontend": {
+      "location": "frontend/src/",
+      "fileNaming": "PascalCase.tsx for components, camelCase.ts for utilities",
+      "structure": {
+        "components": "frontend/src/components/ - React components",
+        "pages": "frontend/src/pages/ - Page-level components",
+        "hooks": "frontend/src/hooks/ - Custom React hooks",
+        "store": "frontend/src/store/ - Zustand stores",
+        "utils": "frontend/src/utils/ - Helper functions",
+        "types": "frontend/src/types/ - TypeScript type definitions"
+      },
+      "patterns": {
+        "component": "export function ComponentName() { ... }",
+        "page": "export default function PageName() { ... }",
+        "zustandStore": "import { create } from 'zustand';\nexport const useStoreName = create((set) => ({ ... }));",
+        "apiCall": "const response = await fetch(`${API_URL}/endpoint`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });",
+        "card": "className=\"bg-white rounded-xl p-6 shadow-lg\"",
+        "button": "className=\"bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-xl transition-all\"",
+        "formInput": "className=\"w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent\""
+      },
+      "hooks": {
+        "zustand": "const { data, actions } = useStoreName();",
+        "router": "import { useNavigate, useParams, useLocation } from 'react-router-dom';",
+        "fetch": "const [data, setData] = useState(null);\nconst [loading, setLoading] = useState(true);\nuseEffect(() => { fetchData(); }, []);"
+      }
+    },
+    "database": {
+      "type": "D1 (SQLite)",
+      "location": "worker/schema.sql",
+      "pattern": "CREATE TABLE table_name (id INTEGER PRIMARY KEY AUTOINCREMENT, field TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+      "types": ["TEXT", "INTEGER", "REAL", "BLOB", "TIMESTAMP"],
+      "indexes": "CREATE INDEX idx_field ON table_name(field);",
+      "migrations": "Place migration files in worker/migrations/"
+    }
+  },
+  "apiEndpoints": {
+    "auth": {
+      "POST /api/auth/register": "Register new user",
+      "POST /api/auth/login": "Login user",
+      "POST /api/auth/refresh": "Refresh access token",
+      "POST /api/auth/logout": "Logout user",
+      "GET /api/auth/me": "Get current user (protected)"
+    },
+    "picks": {
+      "GET /api/picks/today": "Get today's AI picks (public)",
+      "POST /api/picks/generate": "Generate picks (admin)",
+      "GET /api/picks/archive": "Get historical picks"
+    },
+    "matches": {
+      "GET /api/matches/today": "Get today's matches",
+      "GET /api/matches/live": "Get live matches",
+      "GET /api/matches/upcoming": "Get upcoming matches",
+      "GET /api/matches/:id": "Get match by ID",
+      "GET /api/matches/predictions": "Get today's predictions",
+      "GET /api/matches/value-bets": "Get value bet opportunities",
+      "POST /api/admin/sync-matches": "Sync matches (admin)",
+      "POST /api/admin/sync-live": "Sync live scores (admin)"
+    },
+    "userPicks": {
+      "POST /api/user-picks": "Place user pick (protected)",
+      "GET /api/user-picks": "Get user's picks (protected)",
+      "GET /api/user-picks/stats": "Get user stats (protected)",
+      "GET /api/leaderboard": "Get leaderboard (public)",
+      "GET /api/user-picks/achievements": "Get achievements (protected)",
+      "GET /api/user-picks/bankroll": "Get bankroll history (protected)"
+    }
+  },
+  "enhancementWorkflows": {
+    "newFeature": [
+      "1. Update worker/schema.sql with new tables/fields",
+      "2. Run migrations to update D1 database",
+      "3. Create handler in worker/src/handlers/",
+      "4. Add route in worker/src/index.js",
+      "5. Create frontend components in frontend/src/components/",
+      "6. Update Zustand store if needed",
+      "7. Add route in frontend router",
+      "8. Test functionality",
+      "9. Update documentation"
+    ],
+    "newBackendEndpoint": [
+      "1. Create handler function in appropriate handlers/ file",
+      "2. Add auth middleware (requireAuth/requireAdmin) if needed",
+      "3. Implement input validation",
+      "4. Write D1 database queries",
+      "5. Add error handling",
+      "6. Register route in index.js",
+      "7. Test with frontend or Postman"
+    ],
+    "newComponent": [
+      "1. Create .tsx file in frontend/src/components/",
+      "2. Define TypeScript props interface",
+      "3. Add Tailwind styling",
+      "4. Implement API calls if needed",
+      "5. Add loading/error states",
+      "6. Integrate with router or parent component"
+    ],
+    "newDatabaseTable": [
+      "1. Add CREATE TABLE statement to worker/schema.sql",
+      "2. Add indexes for frequently queried fields",
+      "3. Create migration file in worker/migrations/",
+      "4. Run migration: npm run migrate",
+      "5. Update handlers to use new table",
+      "6. Test queries"
+    ],
+    "optimization": [
+      "1. Identify performance bottleneck",
+      "2. Add database indexes if needed",
+      "3. Implement pagination for large datasets",
+      "4. Cache frequently accessed data",
+      "5. Optimize SQL queries (use EXPLAIN)",
+      "6. Measure improvement"
+    ]
+  },
+  "qualityChecklist": {
+    "backend": [
+      "Input validation implemented",
+      "Authentication/authorization checked",
+      "Error handling with try/catch",
+      "Database indexes created",
+      "Rate limiting considered",
+      "CORS headers set correctly",
+      "SQL injection prevention (prepared statements)",
+      "Function documented"
+    ],
+    "frontend": [
+      "TypeScript props/types defined",
+      "Responsive design (mobile/tablet/desktop)",
+      "Loading states handled",
+      "Error states handled",
+      "Accessibility considered (ARIA, semantic HTML)",
+      "Form validation if applicable",
+      "API error handling"
+    ],
+    "general": [
+      "Follows existing code patterns",
+      "No security vulnerabilities",
+      "Documentation updated",
+      "Tested manually",
+      "Git commit with clear message"
+    ]
+  },
+  "commonPatterns": {
+    "leaderboard": {
+      "backend": "SELECT user_id, SUM(profit) as total_profit, COUNT(*) as picks_count FROM user_picks WHERE status = 'won' GROUP BY user_id ORDER BY total_profit DESC LIMIT 10;",
+      "frontend": "Display table with rank, username, total profit, win rate, badges"
+    },
+    "statistics": {
+      "backend": "Use SQL aggregation (SUM, AVG, COUNT, GROUP BY)",
+      "frontend": "Cards with numbers, percentage indicators, trend arrows"
+    },
+    "authentication": {
+      "login": "POST /api/auth/login → JWT token → store in localStorage → add to Authorization header",
+      "protected": "Check token expiry → if expired, refresh → if refresh fails, redirect to login",
+      "logout": "Clear localStorage → POST /api/auth/logout → redirect to home"
+    },
+    "forms": {
+      "pattern": "Controlled inputs with state, client-side validation, API call on submit, show loading/error states",
+      "example": "const [value, setValue] = useState(''); const handleSubmit = async () => { setLoading(true); try { await api.call() } catch (e) { setError(e.message) } }"
+    }
+  },
+  "externalAPIs": {
+    "current": {
+      "matchData": "API-Football (api-football.com) - Fixtures, live scores, statistics",
+      "ai": "Cloudflare AI Workers (@cf/meta/llama-3-8b-instruct) + OpenAI GPT for predictions"
+    },
+    "recommended": {
+      "odds": "The Odds API (theoddsapi.com) - Real-time betting odds",
+      "liveScores": "Sportradar or LiveScore API - Live score updates",
+      "streaming": "Check legal streaming partnerships"
+    },
+    "integration": "External API calls in worker/src/services/ or directly in handlers with error handling"
+  },
+  "aiGuidance": {
+    "whenToUseAI": [
+      "Match prediction generation",
+      "Match analysis and insights",
+      "Value bet detection",
+      "User question answering",
+      "Betting strategy recommendations"
+    ],
+    "models": {
+      "cloudflareAI": "Free tier, good for basic predictions, fallback option",
+      "openAI": "Higher accuracy, use for premium predictions",
+      "hybrid": "Use Cloudflare AI for volume, OpenAI for critical predictions"
+    }
+  },
+  "deployment": {
+    "backend": {
+      "platform": "Cloudflare Workers",
+      "command": "npm run deploy (in worker/)",
+      "database": "D1 database (managed in Cloudflare dashboard)",
+      "env": "Set environment variables in wrangler.toml or Cloudflare dashboard"
+    },
+    "frontend": {
+      "platform": "Cloudflare Pages",
+      "command": "npm run build (in frontend/)",
+      "output": "dist/",
+      "env": "VITE_API_URL - Set in Cloudflare Pages dashboard"
+    },
+    "cicd": "GitHub integration - auto-deploy on push to main branch"
+  },
+  "security": {
+    "authentication": "JWT tokens (access + refresh tokens)",
+    "password": "bcrypt hashing with salt rounds >= 10",
+    "rateLimit": "Implemented in middleware/authMiddleware.js",
+    "cors": "Configured in utils/response.js",
+    "sqlInjection": "Always use prepared statements with .bind()",
+    "xss": "React escapes by default, sanitize user HTML input",
+    "secrets": "Store in Cloudflare environment variables, never in code"
+  },
+  "testingStrategy": {
+    "manual": "Test all endpoints with Postman or test scripts",
+    "files": "test-*.js and test-*.py files in root for integration testing",
+    "credentials": "See FINAL-WORKING-CREDENTIALS.txt for test accounts"
+  }
+}
