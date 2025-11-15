@@ -117,11 +117,15 @@ export async function handleUpdateProfile(request, env, user) {
 export async function handleUpdateSettings(request, env, user) {
   try {
     const settings = await request.json();
+    console.log('Settings update request:', settings);
+    console.log('User ID:', user.id);
 
     // Get existing settings
     const existingSettings = await env.DB.prepare(
       'SELECT id FROM user_settings WHERE user_id = ?'
     ).bind(user.id).first();
+
+    console.log('Existing settings found:', !!existingSettings);
 
     if (existingSettings) {
       // Update existing settings
@@ -140,7 +144,7 @@ export async function handleUpdateSettings(request, env, user) {
             default_stake = ?,
             risk_tolerance = ?,
             favorite_leagues = ?,
-            updated_at = CURRENT_TIMESTAMP
+            updated_at = ?
         WHERE user_id = ?
       `).bind(
         settings.emailNotifications ?? true,
@@ -156,6 +160,7 @@ export async function handleUpdateSettings(request, env, user) {
         settings.defaultStake || 100,
         settings.riskTolerance || 'medium',
         JSON.stringify(settings.favoriteLeagues || []),
+        new Date().toISOString(),
         user.id
       ).run();
     } else {
@@ -185,13 +190,17 @@ export async function handleUpdateSettings(request, env, user) {
       ).run();
     }
 
+    console.log('Settings updated successfully for user:', user.id);
+
     return successResponse({
       message: 'Settings updated successfully'
     });
 
   } catch (error) {
     console.error('Error updating settings:', error);
-    return errorResponse('Failed to update settings', 500);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    return errorResponse(`Failed to update settings: ${error.message}`, 500);
   }
 }
 
