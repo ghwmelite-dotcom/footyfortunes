@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { userPicksApi } from '../services/api';
 import {
   Trophy, LogOut, Target, Activity, BarChart3, Settings, Menu, X, Home,
   Shield, TrendingUp, TrendingDown, DollarSign, Percent, Calendar,
@@ -34,35 +35,56 @@ const PerformancePage: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'wins' | 'losses'>('all');
+  const [stats, setStats] = useState<any>(null);
+  const [bettingHistory, setBettingHistory] = useState<BettingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock performance data
-  const stats = {
-    totalBets: 124,
-    wins: 94,
-    losses: 25,
-    pending: 5,
-    winRate: 78.9,
-    totalStaked: 12400,
-    totalProfit: 3847.50,
-    roi: 31.0,
-    avgOdds: 2.15,
-    avgStake: 100,
-    bestStreak: 12,
-    currentStreak: 7,
-    profitThisWeek: 342.50,
-    profitThisMonth: 1285.75,
-  };
+  // Fetch real user stats and betting history from API
+  useEffect(() => {
+    const fetchPerformanceData = async () => {
+      setLoading(true);
+      setError(null);
 
-  const bettingHistory: BettingRecord[] = [
-    { id: '1', date: '2025-11-05', match: 'Arsenal vs Chelsea', league: 'Premier League', prediction: 'Over 2.5', odds: 1.85, stake: 100, result: 'win', profit: 85, confidence: 92 },
-    { id: '2', date: '2025-11-05', match: 'Barcelona vs Real Madrid', league: 'La Liga', prediction: 'BTTS', odds: 1.75, stake: 150, result: 'win', profit: 112.5, confidence: 88 },
-    { id: '3', date: '2025-11-04', match: 'Bayern vs Dortmund', league: 'Bundesliga', prediction: 'Home Win', odds: 2.10, stake: 200, result: 'win', profit: 220, confidence: 85 },
-    { id: '4', date: '2025-11-04', match: 'PSG vs Lyon', league: 'Ligue 1', prediction: 'Over 3.5', odds: 2.40, stake: 50, result: 'loss', profit: -50, confidence: 78 },
-    { id: '5', date: '2025-11-03', match: 'Liverpool vs Spurs', league: 'Premier League', prediction: 'BTTS & Over 2.5', odds: 2.05, stake: 120, result: 'win', profit: 126, confidence: 90 },
-    { id: '6', date: '2025-11-03', match: 'Inter vs Juventus', league: 'Serie A', prediction: 'Under 2.5', odds: 1.95, stake: 100, result: 'win', profit: 95, confidence: 82 },
-    { id: '7', date: '2025-11-02', match: 'Man City vs Man Utd', league: 'Premier League', prediction: 'Home Win', odds: 1.65, stake: 200, result: 'win', profit: 130, confidence: 95 },
-    { id: '8', date: '2025-11-02', match: 'Atletico vs Sevilla', league: 'La Liga', prediction: 'Draw', odds: 3.20, stake: 75, result: 'loss', profit: -75, confidence: 70 },
-  ];
+      try {
+        // Fetch user stats
+        const statsResponse = await userPicksApi.getUserStats();
+
+        if (statsResponse.success && statsResponse.stats) {
+          setStats(statsResponse.stats);
+        }
+
+        // Fetch betting history
+        const historyResponse = await userPicksApi.getUserPicks();
+
+        if (historyResponse.success && historyResponse.picks) {
+          // Transform API data to match component interface
+          const transformedHistory: BettingRecord[] = historyResponse.picks.map((pick: any) => ({
+            id: pick.id?.toString(),
+            date: pick.placed_at ? new Date(pick.placed_at).toISOString().split('T')[0] : 'N/A',
+            match: `${pick.home_team_name || 'TBD'} vs ${pick.away_team_name || 'TBD'}`,
+            league: pick.league_name || 'Unknown',
+            prediction: pick.predicted_outcome || 'N/A',
+            odds: pick.potential_return / pick.stake_amount || 0,
+            stake: pick.stake_amount || 0,
+            result: pick.status === 'won' ? 'win' : pick.status === 'lost' ? 'loss' : 'pending',
+            profit: pick.status === 'won' ? (pick.actual_return - pick.stake_amount) :
+                    pick.status === 'lost' ? -pick.stake_amount : 0,
+            confidence: pick.confidence_at_time || 0
+          }));
+
+          setBettingHistory(transformedHistory);
+        }
+      } catch (err) {
+        console.error('Error fetching performance data:', err);
+        setError('Unable to load performance data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPerformanceData();
+  }, [timeRange]);
 
   const monthlyData = [
     { month: 'Jun', profit: 1245, bets: 42 },
@@ -70,7 +92,7 @@ const PerformancePage: React.FC = () => {
     { month: 'Aug', profit: 2134, bets: 52 },
     { month: 'Sep', profit: 1689, bets: 45 },
     { month: 'Oct', profit: 2456, bets: 58 },
-    { month: 'Nov', profit: 1286, bets: 28 },
+    { month: 'Nov', profit: stats?.profitThisMonth || 1286, bets: stats?.totalBets || 28 },
   ];
 
   useEffect(() => {
@@ -203,22 +225,46 @@ const PerformancePage: React.FC = () => {
         </header>
 
         <div className="max-w-7xl mx-auto px-6 py-8">
-          {/* Stats Grid */}
-          <div className={`grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 transition-all duration-1000 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 hover:scale-105 transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center gap-1 text-green-400 text-sm">
-                  <ArrowUp className="w-4 h-4" />
-                  <span className="font-bold">+12%</span>
-                </div>
-              </div>
-              <p className="text-sm text-blue-300 mb-1">Win Rate</p>
-              <p className="text-3xl font-black text-green-400">{stats.winRate}%</p>
-              <p className="text-xs text-blue-400 mt-2">{stats.wins} wins / {stats.losses} losses</p>
+          {/* Loading State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-32">
+              <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-blue-300 text-lg">Loading performance data...</p>
             </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="bg-red-900/20 border border-red-500/30 rounded-3xl p-12 text-center">
+              <XCircle className="w-20 h-20 mx-auto mb-4 text-red-400" />
+              <p className="text-red-300 text-xl mb-6">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-8 py-4 bg-red-600 hover:bg-red-500 rounded-xl font-bold transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Stats Grid */}
+          {!loading && !error && stats && (
+            <>
+              <div className={`grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 transition-all duration-1000 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 hover:scale-105 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex items-center gap-1 text-green-400 text-sm">
+                      <ArrowUp className="w-4 h-4" />
+                      <span className="font-bold">+12%</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-blue-300 mb-1">Win Rate</p>
+                  <p className="text-3xl font-black text-green-400">{stats.winRate || stats.win_rate || 0}%</p>
+                  <p className="text-xs text-blue-400 mt-2">{stats.wins || stats.total_wins || 0} wins / {stats.losses || stats.total_losses || 0} losses</p>
+                </div>
 
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 hover:scale-105 transition-all">
               <div className="flex items-center justify-between mb-4">
@@ -231,8 +277,8 @@ const PerformancePage: React.FC = () => {
                 </div>
               </div>
               <p className="text-sm text-blue-300 mb-1">Total Profit</p>
-              <p className="text-3xl font-black text-yellow-400">GH₵{stats.totalProfit.toFixed(2)}</p>
-              <p className="text-xs text-blue-400 mt-2">From GH₵{stats.totalStaked} staked</p>
+              <p className="text-3xl font-black text-yellow-400">GH₵{(stats.totalProfit || stats.total_profit || 0).toFixed(2)}</p>
+              <p className="text-xs text-blue-400 mt-2">From GH₵{stats.totalStaked || stats.total_staked || 0} staked</p>
             </div>
 
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 hover:scale-105 transition-all">
@@ -246,8 +292,8 @@ const PerformancePage: React.FC = () => {
                 </div>
               </div>
               <p className="text-sm text-blue-300 mb-1">ROI</p>
-              <p className="text-3xl font-black text-purple-400">{stats.roi}%</p>
-              <p className="text-xs text-blue-400 mt-2">Avg odds: {stats.avgOdds}x</p>
+              <p className="text-3xl font-black text-purple-400">{stats.roi || 0}%</p>
+              <p className="text-xs text-blue-400 mt-2">Avg odds: {(stats.avgOdds || stats.avg_odds || 0).toFixed(2)}x</p>
             </div>
 
             <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 hover:scale-105 transition-all">
@@ -260,8 +306,8 @@ const PerformancePage: React.FC = () => {
                 </div>
               </div>
               <p className="text-sm text-blue-300 mb-1">Current Streak</p>
-              <p className="text-3xl font-black text-blue-400">{stats.currentStreak} wins</p>
-              <p className="text-xs text-blue-400 mt-2">Best: {stats.bestStreak} wins</p>
+              <p className="text-3xl font-black text-blue-400">{stats.currentStreak || stats.win_streak || 0} wins</p>
+              <p className="text-xs text-blue-400 mt-2">Best: {stats.bestStreak || stats.best_streak || 0} wins</p>
             </div>
           </div>
 
@@ -431,6 +477,8 @@ const PerformancePage: React.FC = () => {
               </table>
             </div>
           </div>
+          </>
+          )}
         </div>
       </main>
 

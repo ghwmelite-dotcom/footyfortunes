@@ -80,6 +80,35 @@ export async function handlePlacePick(request, env, user) {
       notes || null
     ).run();
 
+    const pickId = result.meta.last_row_id;
+
+    // CRITICAL: Deduct stake from bankroll and update stats
+    const newBankroll = userStats.current_bankroll - stake_amount;
+    await env.DB.prepare(`
+      UPDATE user_betting_stats
+      SET current_bankroll = ?,
+          total_wagered = total_wagered + ?,
+          total_picks = total_picks + 1,
+          pending_picks = pending_picks + 1
+      WHERE user_id = ?
+    `).bind(newBankroll, stake_amount, user.id).run();
+
+    // Log bankroll transaction for history tracking
+    await env.DB.prepare(`
+      INSERT INTO bankroll_history (
+        user_id, transaction_type, amount, balance_after,
+        related_pick_id, description, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      user.id,
+      'bet_placed',
+      -stake_amount,
+      newBankroll,
+      pickId,
+      `Bet placed: ${prediction.predicted_winner}`,
+      new Date().toISOString()
+    ).run();
+
     // Check for achievements
     await checkAndUnlockAchievements(env, user.id);
 
@@ -106,8 +135,8 @@ export async function handlePlacePick(request, env, user) {
 
     return successResponse({
       pick: pick,
-      new_bankroll: userStats.current_bankroll - stake_amount
-    }, 'Pick placed successfully');
+      new_bankroll: newBankroll
+    }, 'Pick placed successfully! Stake deducted from bankroll.');
 
   } catch (error) {
     console.error('Error placing pick:', error);
@@ -608,17 +637,62 @@ export async function handleSettlePicks(request, env) {
     for (const pick of picks.results) {
       const won = pick.predicted_outcome === actualOutcome;
       const actualReturn = won ? pick.potential_return : 0;
+      const profit = won ? (pick.potential_return - pick.stake_amount) : -pick.stake_amount;
       const newStatus = won ? 'won' : 'lost';
 
+      // Update pick status
       await env.DB.prepare(`
-        UPDATE user_picks 
+        UPDATE user_picks
         SET status = ?, actual_outcome = ?, actual_return = ?, settled_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).bind(newStatus, actualOutcome, actualReturn, pick.id).run();
 
-      // Award XP for settled picks
+      // CRITICAL: Update user bankroll and stats
       if (won) {
+        // Add winnings to bankroll
+        await env.DB.prepare(`
+          UPDATE user_betting_stats
+          SET current_bankroll = current_bankroll + ?,
+              total_wins = total_wins + 1,
+              total_profit = total_profit + ?,
+              pending_picks = pending_picks - 1,
+              win_streak = win_streak + 1,
+              best_streak = MAX(best_streak, win_streak + 1)
+          WHERE user_id = ?
+        `).bind(actualReturn, profit, pick.user_id).run();
+
+        // Log bankroll transaction
+        const userStats = await env.DB.prepare(
+          'SELECT current_bankroll FROM user_betting_stats WHERE user_id = ?'
+        ).bind(pick.user_id).first();
+
+        await env.DB.prepare(`
+          INSERT INTO bankroll_history (
+            user_id, transaction_type, amount, balance_after,
+            related_pick_id, description, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          pick.user_id,
+          'bet_won',
+          actualReturn,
+          userStats.current_bankroll,
+          pick.id,
+          `Bet won: ${pick.predicted_outcome} (GH₵${profit.toFixed(2)} profit)`,
+          new Date().toISOString()
+        ).run();
+
+        // Award XP for winning
         await awardXP(env, pick.user_id, 20, 'pick_won', pick.id, 'Pick won');
+      } else {
+        // Lost bet - update loss stats and reset streak
+        await env.DB.prepare(`
+          UPDATE user_betting_stats
+          SET total_losses = total_losses + 1,
+              total_profit = total_profit + ?,
+              pending_picks = pending_picks - 1,
+              win_streak = 0
+          WHERE user_id = ?
+        `).bind(profit, pick.user_id).run();
       }
 
       settledCount++;

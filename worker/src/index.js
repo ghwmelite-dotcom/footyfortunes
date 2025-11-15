@@ -41,6 +41,12 @@ import {
   handleGetBankrollHistory,
   handleSettlePicks
 } from './handlers/userPicksHandlers.js';
+import {
+  handleUpdateProfile,
+  handleUpdateSettings,
+  handleGetSettings,
+  handleChangePassword
+} from './handlers/userHandlers.js';
 
 // ============================================================================
 // AI PICK GENERATION (unchanged from original)
@@ -463,6 +469,39 @@ async function handleRequest(request, env, corsHeaders) {
     return addRateLimitHeaders(response, rateLimitResult);
   }
 
+  // User Profile & Settings Routes
+  if (path === '/api/user/profile' && method === 'PUT') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleUpdateProfile(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  if (path === '/api/user/settings' && method === 'GET') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleGetSettings(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  if (path === '/api/user/settings' && method === 'PUT') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleUpdateSettings(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  if (path === '/api/user/password' && method === 'PUT') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleChangePassword(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
   // ========================================
   // ADMIN ROUTES (Admin Auth Required)
   // ========================================
@@ -593,8 +632,139 @@ export default {
         await handleSyncLiveMatches(null, env, { role: 'admin' });
         console.log('Live matches updated successfully');
       }
+      // Every 30 mins: Settle finished matches and update bankrolls
+      else if (minute % 30 === 0) {
+        console.log('Settling finished matches...');
+        await autoSettleFinishedMatches(env);
+        console.log('Match settlement completed successfully');
+      }
     } catch (error) {
       console.error('Scheduled task error:', error);
     }
   }
 };
+
+// Auto-settle all finished matches (called by cron)
+async function autoSettleFinishedMatches(env) {
+  try {
+    // Get all finished matches with pending picks
+    const finishedMatches = await env.DB.prepare(`
+      SELECT DISTINCT m.id, m.home_score, m.away_score
+      FROM matches m
+      JOIN user_picks up ON m.id = up.match_id
+      WHERE m.status = 'FT'
+        AND up.status = 'pending'
+        AND m.home_score IS NOT NULL
+        AND m.away_score IS NOT NULL
+    `).all();
+
+    let totalSettled = 0;
+
+    for (const match of finishedMatches.results) {
+      // Determine actual outcome
+      let actualOutcome;
+      if (match.home_score > match.away_score) {
+        actualOutcome = 'home';
+      } else if (match.away_score > match.home_score) {
+        actualOutcome = 'away';
+      } else {
+        actualOutcome = 'draw';
+      }
+
+      // Get all pending picks for this match
+      const picks = await env.DB.prepare(`
+        SELECT * FROM user_picks
+        WHERE match_id = ? AND status = 'pending'
+      `).bind(match.id).all();
+
+      // Settle each pick
+      for (const pick of picks.results) {
+        const won = pick.predicted_outcome === actualOutcome;
+        const actualReturn = won ? pick.potential_return : 0;
+        const profit = won ? (pick.potential_return - pick.stake_amount) : -pick.stake_amount;
+        const newStatus = won ? 'won' : 'lost';
+
+        // Update pick status
+        await env.DB.prepare(`
+          UPDATE user_picks
+          SET status = ?, actual_outcome = ?, actual_return = ?, settled_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(newStatus, actualOutcome, actualReturn, pick.id).run();
+
+        // Update user bankroll and stats
+        if (won) {
+          // Add winnings to bankroll
+          await env.DB.prepare(`
+            UPDATE user_betting_stats
+            SET current_bankroll = current_bankroll + ?,
+                total_wins = total_wins + 1,
+                total_profit = total_profit + ?,
+                pending_picks = pending_picks - 1,
+                win_streak = win_streak + 1,
+                best_streak = MAX(best_streak, win_streak + 1)
+            WHERE user_id = ?
+          `).bind(actualReturn, profit, pick.user_id).run();
+
+          // Log transaction
+          const userStats = await env.DB.prepare(
+            'SELECT current_bankroll FROM user_betting_stats WHERE user_id = ?'
+          ).bind(pick.user_id).first();
+
+          await env.DB.prepare(`
+            INSERT INTO bankroll_history (
+              user_id, transaction_type, amount, balance_after,
+              related_pick_id, description, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            pick.user_id,
+            'bet_won',
+            actualReturn,
+            userStats.current_bankroll,
+            pick.id,
+            `Bet won: ${pick.predicted_outcome} (GH₵${profit.toFixed(2)} profit)`,
+            new Date().toISOString()
+          ).run();
+
+          // Award XP
+          await awardXP(env, pick.user_id, 20, 'pick_won', pick.id, 'Pick won');
+        } else {
+          // Lost bet - update loss stats
+          await env.DB.prepare(`
+            UPDATE user_betting_stats
+            SET total_losses = total_losses + 1,
+                total_profit = total_profit + ?,
+                pending_picks = pending_picks - 1,
+                win_streak = 0
+            WHERE user_id = ?
+          `).bind(profit, pick.user_id).run();
+        }
+
+        totalSettled++;
+      }
+    }
+
+    console.log(`Auto-settled ${totalSettled} picks across ${finishedMatches.results.length} finished matches`);
+    return totalSettled;
+  } catch (error) {
+    console.error('Auto-settlement error:', error);
+    return 0;
+  }
+}
+
+// Helper function to award XP (used by cron)
+async function awardXP(env, userId, amount, actionType, relatedId, description) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO xp_transactions (user_id, xp_amount, action_type, related_id, description)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(userId, amount, actionType, relatedId, description).run();
+
+    await env.DB.prepare(`
+      UPDATE user_levels
+      SET current_xp = current_xp + ?, total_xp = total_xp + ?
+      WHERE user_id = ?
+    `).bind(amount, amount, userId).run();
+  } catch (error) {
+    console.error('Error awarding XP:', error);
+  }
+}

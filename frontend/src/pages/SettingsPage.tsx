@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { userApi } from '../services/api';
 import {
   Trophy, LogOut, Target, Activity, BarChart3, Settings, Menu, X, Home,
   Shield, User, Bell, Lock, CreditCard, Palette, Globe, Mail,
@@ -78,10 +79,101 @@ const SettingsPage: React.FC = () => {
     navigate('/');
   };
 
-  const handleSave = () => {
-    // Mock save functionality
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSaveProfile = async () => {
+    try {
+      const response = await userApi.updateProfile({
+        username: profileData.username,
+        email: profileData.email,
+        avatar: profileData.avatar,
+        bio: profileData.bio
+      });
+
+      if (response.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        alert(response.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile');
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    try {
+      const response = await userApi.updateSettings({
+        emailNotifications: notifications.emailPicks || notifications.emailResults || notifications.emailWeekly,
+        pushNotifications: notifications.pushPicks || notifications.pushLive || notifications.pushLeaderboard,
+        matchUpdates: notifications.pushLive,
+        predictionAlerts: notifications.emailPicks || notifications.pushPicks,
+        achievementAlerts: notifications.pushLeaderboard,
+        marketingEmails: notifications.emailWeekly
+      });
+
+      if (response.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        alert(response.message || 'Failed to update notifications');
+      }
+    } catch (error) {
+      console.error('Error updating notifications:', error);
+      alert('Failed to update notifications');
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      const response = await userApi.updateSettings({
+        theme: preferences.theme,
+        language: preferences.language,
+        timezone: preferences.timezone,
+        currency: preferences.currency,
+        defaultStake: preferences.defaultStake
+      });
+
+      if (response.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        alert(response.message || 'Failed to update preferences');
+      }
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      alert('Failed to update preferences');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (security.newPassword !== security.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    if (security.newPassword.length < 8) {
+      alert('New password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      const response = await userApi.changePassword(security.currentPassword, security.newPassword);
+
+      if (response.success) {
+        alert('Password changed successfully!');
+        setSecurity({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+          twoFactor: security.twoFactor
+        });
+      } else {
+        alert(response.message || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert('Failed to change password');
+    }
   };
 
   const handleFaviconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,7 +427,7 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveProfile}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-bold transition-all hover:scale-105"
                     >
                       <Save className="w-5 h-5" />
@@ -402,7 +494,7 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveNotifications}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-bold transition-all hover:scale-105"
                     >
                       <Save className="w-5 h-5" />
@@ -490,7 +582,7 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={handleSave}
+                      onClick={handleChangePassword}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-bold transition-all hover:scale-105"
                     >
                       <Save className="w-5 h-5" />
@@ -585,7 +677,7 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={handleSave}
+                      onClick={handleSavePreferences}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-bold transition-all hover:scale-105"
                     >
                       <Save className="w-5 h-5" />

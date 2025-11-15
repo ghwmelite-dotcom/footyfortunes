@@ -21,7 +21,8 @@ binding = "AI"
 [triggers]
 crons = [
   "0 9 * * *",        # Daily at 9 AM: Sync leagues + matches + generate predictions
-  "*/15 14-23 * * *"  # Every 15 mins from 2 PM to 11 PM: Update live matches
+  "*/15 14-23 * * *", # Every 15 mins from 2 PM to 11 PM: Update live matches
+  "*/30 * * * *"      # Every 30 mins: Settle finished matches and update bankrolls
 ]
 
 [vars]

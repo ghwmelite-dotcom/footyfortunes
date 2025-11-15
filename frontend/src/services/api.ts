@@ -348,6 +348,32 @@ export const userPicksApi = {
 };
 
 // ============================================================================
+// USER PROFILE & SETTINGS API
+// ============================================================================
+
+export const userApi = {
+  // Update user profile
+  async updateProfile(data: { username?: string; email?: string; avatar?: string; bio?: string }): Promise<ApiResponse<any>> {
+    return apiClient.put('/api/user/profile', data);
+  },
+
+  // Get user settings
+  async getSettings(): Promise<ApiResponse<any>> {
+    return apiClient.get('/api/user/settings');
+  },
+
+  // Update user settings
+  async updateSettings(settings: any): Promise<ApiResponse<any>> {
+    return apiClient.put('/api/user/settings', settings);
+  },
+
+  // Change password
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<any>> {
+    return apiClient.put('/api/user/password', { currentPassword, newPassword });
+  },
+};
+
+// ============================================================================
 // LEADERBOARD API (Phase 2)
 // ============================================================================
 

@@ -6,10 +6,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { leaderboardApi } from '../services/api';
 import {
   Trophy, LogOut, Target, Activity, BarChart3, Settings, Menu, X, Home,
   Shield, Award, Star, Crown, Medal, TrendingUp, DollarSign, Percent,
-  Users, Flame, Zap, Eye, ChevronRight, Filter, Search
+  Users, Flame, Zap, Eye, ChevronRight, Filter, Search, AlertTriangle
 } from 'lucide-react';
 
 interface LeaderboardEntry {
@@ -34,107 +35,60 @@ const LeaderboardPage: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'all'>('month');
   const [category, setCategory] = useState<'profit' | 'winrate' | 'roi'>('profit');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock leaderboard data
-  const leaderboard: LeaderboardEntry[] = [
-    {
-      rank: 1,
-      userId: '1',
-      username: 'BettingKing',
-      avatar: '👑',
-      totalProfit: 15234.50,
-      winRate: 89.5,
-      roi: 48.2,
-      totalBets: 342,
-      currentStreak: 28,
-      badge: 'legendary'
-    },
-    {
-      rank: 2,
-      userId: '2',
-      username: 'ProfitMaster',
-      avatar: '⭐',
-      totalProfit: 12891.20,
-      winRate: 86.3,
-      roi: 42.8,
-      totalBets: 298,
-      currentStreak: 15,
-      badge: 'master'
-    },
-    {
-      rank: 3,
-      userId: '3',
-      username: 'AcePredictor',
-      avatar: '🔥',
-      totalProfit: 10567.80,
-      winRate: 84.7,
-      roi: 39.5,
-      totalBets: 267,
-      currentStreak: 22,
-      badge: 'expert'
-    },
-    {
-      rank: 4,
-      userId: 'dev-user-1',
-      username: 'testuser',
-      avatar: '👤',
-      totalProfit: 3847.50,
-      winRate: 78.9,
-      roi: 31.0,
-      totalBets: 124,
-      currentStreak: 7,
-      badge: 'pro',
-      isCurrentUser: true
-    },
-    {
-      rank: 5,
-      userId: '5',
-      username: 'SharpBetter',
-      avatar: '💎',
-      totalProfit: 3245.60,
-      winRate: 76.2,
-      roi: 28.4,
-      totalBets: 156,
-      currentStreak: 9,
-      badge: 'pro'
-    },
-    {
-      rank: 6,
-      userId: '6',
-      username: 'OddsWizard',
-      avatar: '🎯',
-      totalProfit: 2998.40,
-      winRate: 74.8,
-      roi: 26.7,
-      totalBets: 189,
-      currentStreak: 5,
-      badge: 'advanced'
-    },
-    {
-      rank: 7,
-      userId: '7',
-      username: 'PicksPro',
-      avatar: '🏆',
-      totalProfit: 2756.30,
-      winRate: 72.5,
-      roi: 24.1,
-      totalBets: 167,
-      currentStreak: 11,
-      badge: 'advanced'
-    },
-    {
-      rank: 8,
-      userId: '8',
-      username: 'BetGenius',
-      avatar: '🧠',
-      totalProfit: 2534.90,
-      winRate: 71.2,
-      roi: 22.8,
-      totalBets: 201,
-      currentStreak: 6,
-      badge: 'advanced'
-    },
-  ];
+  // Fetch real leaderboard data from API
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const periodMap = { week: 'weekly', month: 'monthly', all: 'all_time' } as const;
+        const response = await leaderboardApi.getLeaderboard(periodMap[timeframe], 100);
+
+        if (response.success && response.leaderboard) {
+          // Transform API data to match component interface
+          const transformedData: LeaderboardEntry[] = response.leaderboard.map((entry: any, index: number) => ({
+            rank: entry.rank || index + 1,
+            userId: entry.user_id?.toString() || entry.userId?.toString(),
+            username: entry.username || 'Anonymous',
+            avatar: entry.avatar || '👤',
+            totalProfit: entry.total_profit || entry.totalProfit || 0,
+            winRate: entry.win_rate || entry.winRate || 0,
+            roi: entry.roi || 0,
+            totalBets: entry.total_picks || entry.totalBets || 0,
+            currentStreak: entry.win_streak || entry.currentStreak || 0,
+            badge: entry.badge || getBadgeFromProfit(entry.total_profit || 0),
+            isCurrentUser: user && (entry.user_id === parseInt(user.id) || entry.userId === user.id)
+          }));
+
+          setLeaderboard(transformedData);
+        } else {
+          setError('Failed to load leaderboard data');
+        }
+      } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        setError('Unable to connect to server');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [timeframe, user]);
+
+  // Helper function to assign badge based on profit
+  const getBadgeFromProfit = (profit: number): string => {
+    if (profit >= 10000) return 'legendary';
+    if (profit >= 5000) return 'master';
+    if (profit >= 2000) return 'expert';
+    if (profit >= 1000) return 'pro';
+    if (profit >= 500) return 'advanced';
+    return 'beginner';
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -319,9 +273,47 @@ const LeaderboardPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-blue-300 text-lg">Loading leaderboard...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="bg-red-900/20 border border-red-500/30 rounded-3xl p-8 text-center">
+              <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
+              <p className="text-red-300 text-lg mb-4">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-bold transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && leaderboard.length === 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center">
+              <Users className="w-20 h-20 mx-auto mb-4 text-blue-400" />
+              <h3 className="text-2xl font-black text-white mb-2">No Rankings Yet</h3>
+              <p className="text-blue-300 mb-6">Be the first to place picks and climb the leaderboard!</p>
+              <button
+                onClick={() => navigate('/picks')}
+                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-bold transition-all"
+              >
+                View Predictions
+              </button>
+            </div>
+          )}
+
           {/* Top 3 Podium */}
-          <div className={`grid md:grid-cols-3 gap-6 mb-8 transition-all duration-1000 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            {leaderboard.slice(0, 3).map((entry, index) => {
+          {!loading && !error && leaderboard.length >= 3 && (
+            <div className={`grid md:grid-cols-3 gap-6 mb-8 transition-all duration-1000 delay-400 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              {leaderboard.slice(0, 3).map((entry, index) => {
               const heights = ['md:translate-y-0', 'md:translate-y-8', 'md:translate-y-4'];
               const gradients = [
                 'from-yellow-500 to-orange-500',
@@ -375,13 +367,15 @@ const LeaderboardPage: React.FC = () => {
               );
             })}
           </div>
+          )}
 
           {/* Rest of Rankings */}
-          <div className={`bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 transition-all duration-1000 delay-600 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-2xl font-black mb-6">All Rankings</h2>
+          {!loading && !error && leaderboard.length > 0 && (
+            <div className={`bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 transition-all duration-1000 delay-600 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              <h2 className="text-2xl font-black mb-6">All Rankings</h2>
 
-            <div className="space-y-3">
-              {leaderboard.map((entry) => (
+              <div className="space-y-3">
+                {leaderboard.map((entry) => (
                 <div
                   key={entry.userId}
                   className={`flex items-center gap-4 p-4 rounded-2xl transition-all hover:scale-102 ${
@@ -441,6 +435,7 @@ const LeaderboardPage: React.FC = () => {
               ))}
             </div>
           </div>
+          )}
         </div>
       </main>
 
