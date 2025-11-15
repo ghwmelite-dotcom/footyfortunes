@@ -330,15 +330,22 @@ export async function handleLogout(request, env, corsHeaders, user) {
  */
 export async function handleGetMe(env, corsHeaders, user) {
   try {
+    console.log('Get me called for user:', user);
+
     const userInfo = await env.DB.prepare(`
-      SELECT u.id, u.email, u.username, u.full_name, u.avatar_url, u.role, u.status, u.created_at,
-             p.bio, p.location, p.timezone, p.language, p.currency,
-             s.total_xp, s.level, s.coins, s.current_streak, s.accuracy, s.total_profit, s.roi
+      SELECT
+        u.id, u.email, u.username, u.full_name, u.avatar_url, u.role, u.status, u.created_at,
+        p.bio, p.location,
+        l.current_level, l.current_xp, l.total_xp,
+        bs.current_bankroll, bs.net_profit, bs.roi_percentage, bs.win_rate, bs.current_win_streak
       FROM users u
       LEFT JOIN user_profiles p ON u.id = p.user_id
-      LEFT JOIN user_stats s ON u.id = s.user_id
+      LEFT JOIN user_levels l ON u.id = l.user_id
+      LEFT JOIN user_betting_stats bs ON u.id = bs.user_id
       WHERE u.id = ?
-    `).bind(user.userId).first();
+    `).bind(user.id).first();
+
+    console.log('User info fetched:', userInfo ? 'found' : 'not found');
 
     if (!userInfo) {
       return errorResponse('User not found', 404, null, corsHeaders);
@@ -348,6 +355,8 @@ export async function handleGetMe(env, corsHeaders, user) {
 
   } catch (error) {
     console.error('Get user info error:', error);
-    return errorResponse('Failed to fetch user info', 500, null, corsHeaders);
+    console.error('Error message:', error.message);
+    console.error('User object:', user);
+    return errorResponse(`Failed to fetch user info: ${error.message}`, 500, null, corsHeaders);
   }
 }
