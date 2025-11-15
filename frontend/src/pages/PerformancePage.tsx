@@ -113,6 +113,43 @@ const PerformancePage: React.FC = () => {
     navigate('/');
   };
 
+  const handleExportCSV = () => {
+    if (bettingHistory.length === 0) {
+      alert('No betting history to export');
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Date', 'Match', 'League', 'Prediction', 'Odds', 'Stake (GH₵)', 'Result', 'Profit (GH₵)', 'Confidence (%)'];
+    const rows = bettingHistory.map(bet => [
+      bet.date,
+      bet.match,
+      bet.league,
+      bet.prediction,
+      bet.odds.toFixed(2),
+      bet.stake.toFixed(2),
+      bet.result.toUpperCase(),
+      bet.profit.toFixed(2),
+      bet.confidence
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `footyfortunes_performance_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const navigationItems = [
     { icon: <Home className="w-5 h-5" />, label: 'Dashboard', path: '/dashboard', active: false },
     { icon: <Target className="w-5 h-5" />, label: 'Today\'s Picks', path: '/picks', active: false },
@@ -407,9 +444,12 @@ const PerformancePage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">Betting History</h2>
               <div className="flex gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl font-semibold transition-all">
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl font-semibold transition-all hover:scale-105"
+                >
                   <Download className="w-4 h-4" />
-                  Export
+                  Export CSV
                 </button>
                 <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl font-semibold transition-all">
                   <Filter className="w-4 h-4" />

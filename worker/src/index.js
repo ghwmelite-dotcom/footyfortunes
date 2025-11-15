@@ -47,6 +47,12 @@ import {
   handleGetSettings,
   handleChangePassword
 } from './handlers/userHandlers.js';
+import {
+  handleAddFavorite,
+  handleRemoveFavorite,
+  handleGetFavorites,
+  handleCheckFavorite
+} from './handlers/favoritesHandlers.js';
 
 // ============================================================================
 // AI PICK GENERATION (unchanged from original)
@@ -499,6 +505,31 @@ async function handleRequest(request, env, corsHeaders) {
     if (user instanceof Response) return user;
 
     const response = await handleChangePassword(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  // User Favorites Routes
+  if (path === '/api/user/favorites' && method === 'GET') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleGetFavorites(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  if (path.startsWith('/api/user/favorites/') && method === 'POST') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleAddFavorite(request, env, user);
+    return addRateLimitHeaders(response, rateLimitResult);
+  }
+
+  if (path.startsWith('/api/user/favorites/') && method === 'DELETE') {
+    const user = await requireAuth(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+
+    const response = await handleRemoveFavorite(request, env, user);
     return addRateLimitHeaders(response, rateLimitResult);
   }
 

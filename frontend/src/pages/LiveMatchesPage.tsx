@@ -59,10 +59,10 @@ const LiveMatchesPage: React.FC = () => {
 
     window.addEventListener('mousemove', handleMouseMove);
 
-    // Auto-refresh every 30 seconds for live matches
+    // Auto-refresh every 10 seconds for live matches (premium real-time updates)
     const refreshInterval = setInterval(() => {
       loadLivePredictions();
-    }, 30000);
+    }, 10000);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);

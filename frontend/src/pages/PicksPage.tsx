@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { picksApi, matchesApi, userPicksApi } from '../services/api';
+import { picksApi, matchesApi, userPicksApi, favoritesApi } from '../services/api';
 import type { Pick } from '../types';
 import {
   Trophy, LogOut, Target, Activity, BarChart3, Settings, Menu, X, Home,
@@ -43,6 +43,7 @@ const PicksPage: React.FC = () => {
   const [betSuccess, setBetSuccess] = useState(false);
   const [betError, setBetError] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [favoritedPredictions, setFavoritedPredictions] = useState<Set<number>>(new Set());
 
   const [filters, setFilters] = useState<FilterState>({
     date: 'today',
@@ -150,6 +151,32 @@ const PicksPage: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const handleToggleFavorite = async (predictionId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click
+
+    const isFavorited = favoritedPredictions.has(predictionId);
+
+    try {
+      if (isFavorited) {
+        const response = await favoritesApi.removeFavorite(predictionId);
+        if (response.success) {
+          setFavoritedPredictions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(predictionId);
+            return newSet;
+          });
+        }
+      } else {
+        const response = await favoritesApi.addFavorite(predictionId);
+        if (response.success) {
+          setFavoritedPredictions(prev => new Set(prev).add(predictionId));
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   const handlePlaceBet = async () => {
@@ -688,9 +715,16 @@ const PicksPage: React.FC = () => {
                 <CheckCircle2 className="w-5 h-5" />
                 Place Bet
               </button>
-              <button className="flex-1 py-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2">
-                <Heart className="w-5 h-5" />
-                Save Prediction
+              <button
+                onClick={(e) => handleToggleFavorite(selectedPrediction.id, e)}
+                className={`flex-1 py-4 border rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2 ${
+                  favoritedPredictions.has(selectedPrediction?.id)
+                    ? 'bg-red-600/20 border-red-500/50 text-red-400 hover:bg-red-600/30'
+                    : 'bg-white/10 hover:bg-white/20 border-white/20'
+                }`}
+              >
+                <Heart className={`w-5 h-5 ${favoritedPredictions.has(selectedPrediction?.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                {favoritedPredictions.has(selectedPrediction?.id) ? 'Saved' : 'Save Prediction'}
               </button>
             </div>
           </div>

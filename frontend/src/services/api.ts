@@ -385,6 +385,32 @@ export const leaderboardApi = {
 };
 
 // ============================================================================
+// FAVORITES API
+// ============================================================================
+
+export const favoritesApi = {
+  // Get user's favorite predictions
+  async getFavorites(): Promise<ApiResponse<any>> {
+    return apiClient.get('/api/user/favorites');
+  },
+
+  // Add prediction to favorites
+  async addFavorite(predictionId: number): Promise<ApiResponse<any>> {
+    return apiClient.post(`/api/user/favorites/${predictionId}`, {});
+  },
+
+  // Remove prediction from favorites
+  async removeFavorite(predictionId: number): Promise<ApiResponse<any>> {
+    return apiClient.delete(`/api/user/favorites/${predictionId}`);
+  },
+
+  // Check if prediction is favorited
+  async checkFavorite(predictionId: number): Promise<ApiResponse<any>> {
+    return apiClient.get(`/api/user/favorites/${predictionId}`);
+  },
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 

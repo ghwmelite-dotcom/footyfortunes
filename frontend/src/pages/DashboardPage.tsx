@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { picksApi, matchesApi, userPicksApi, leaderboardApi } from '../services/api';
+import AchievementsModal from '../components/AchievementsModal';
 import type { Pick } from '../types';
 import {
   Trophy, LogOut, TrendingUp, Calendar, Target, Zap, Activity,
@@ -28,6 +29,7 @@ const DashboardPage: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
 
   // Counter animation hook
   const useCountUp = (end: number, duration: number = 2000, decimals: number = 0) => {
@@ -721,6 +723,22 @@ const DashboardPage: React.FC = () => {
         </div>
       </main>
 
+      {/* Floating Achievements Button */}
+      <button
+        onClick={() => setAchievementsModalOpen(true)}
+        className="fixed bottom-8 right-8 z-50 group flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 rounded-2xl font-bold text-white shadow-2xl shadow-yellow-500/50 transition-all hover:scale-110 animate-bounce-slow"
+      >
+        <Trophy className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+        <span className="hidden md:block">Achievements</span>
+        <Sparkles className="w-5 h-5 animate-pulse" />
+      </button>
+
+      {/* Achievements Modal */}
+      <AchievementsModal
+        isOpen={achievementsModalOpen}
+        onClose={() => setAchievementsModalOpen(false)}
+      />
+
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
@@ -737,6 +755,17 @@ const DashboardPage: React.FC = () => {
         }
         .hover\:scale-102:hover {
           transform: scale(1.02);
+        }
+        @keyframes bounce-slow {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 3s ease-in-out infinite;
         }
       `}</style>
     </div>
