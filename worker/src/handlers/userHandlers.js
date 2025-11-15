@@ -120,9 +120,9 @@ export async function handleUpdateSettings(request, env, user) {
     console.log('Settings update request:', settings);
     console.log('User ID:', user.id);
 
-    // Get existing settings
+    // Get existing settings (user_id is the primary key, no separate id column)
     const existingSettings = await env.DB.prepare(
-      'SELECT id FROM user_settings WHERE user_id = ?'
+      'SELECT user_id FROM user_settings WHERE user_id = ?'
     ).bind(user.id).first();
 
     console.log('Existing settings found:', !!existingSettings);

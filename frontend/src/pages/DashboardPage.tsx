@@ -106,15 +106,32 @@ const DashboardPage: React.FC = () => {
         leaderboardApi.getLeaderboard('all_time', 10).catch(() => ({ success: false, error: 'Leaderboard unavailable' }))
       ]);
 
-      // Handle predictions
-      if (predictionsResponse.success && predictionsResponse.message?.predictions) {
-        setPredictions(predictionsResponse.message.predictions);
+      console.log('Predictions API Response:', predictionsResponse);
+
+      // Handle predictions - check multiple possible response structures
+      let predictionsData = null;
+
+      if (predictionsResponse.success) {
+        // Try different response structures
+        if (predictionsResponse.message?.predictions) {
+          predictionsData = predictionsResponse.message.predictions;
+        } else if (predictionsResponse.predictions) {
+          predictionsData = predictionsResponse.predictions;
+        } else if (predictionsResponse.data?.predictions) {
+          predictionsData = predictionsResponse.data.predictions;
+        } else if (predictionsResponse.data) {
+          predictionsData = predictionsResponse.data;
+        }
+      }
+
+      if (predictionsData && Array.isArray(predictionsData)) {
+        setPredictions(predictionsData);
         setError(null);
-      } else if (predictionsResponse.success && (!predictionsResponse.message?.predictions || predictionsResponse.message.predictions.length === 0)) {
+      } else if (predictionsResponse.success) {
         setPredictions([]);
         setError('No predictions available for today. Check back later!');
       } else {
-        setError(predictionsResponse.error || 'Failed to load predictions');
+        setError(predictionsResponse.error || predictionsResponse.message || 'Failed to load predictions');
       }
 
       // Handle user stats
