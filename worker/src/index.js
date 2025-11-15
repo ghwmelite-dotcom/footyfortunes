@@ -289,7 +289,7 @@ async function handleGetAllUsers(env, corsHeaders) {
   }
 }
 
-async function handleGetSettings(env, corsHeaders) {
+async function handleGetPlatformSettings(env, corsHeaders) {
   try {
     const settings = await env.CACHE.get('platform_settings', { type: 'json' });
     return successResponse({
@@ -307,7 +307,7 @@ async function handleGetSettings(env, corsHeaders) {
   }
 }
 
-async function handleUpdateSettings(request, env, corsHeaders) {
+async function handleUpdatePlatformSettings(request, env, corsHeaders) {
   try {
     const settings = await request.json();
     await env.CACHE.put('platform_settings', JSON.stringify(settings));
@@ -526,12 +526,12 @@ async function handleRequest(request, env, corsHeaders) {
     }
 
     if (path === '/api/admin/settings' && method === 'GET') {
-      const response = await handleGetSettings(env, corsHeaders);
+      const response = await handleGetPlatformSettings(env, corsHeaders);
       return addRateLimitHeaders(response, rateLimitResult);
     }
 
     if (path === '/api/admin/settings' && method === 'PUT') {
-      const response = await handleUpdateSettings(request, env, corsHeaders);
+      const response = await handleUpdatePlatformSettings(request, env, corsHeaders);
       return addRateLimitHeaders(response, rateLimitResult);
     }
 
