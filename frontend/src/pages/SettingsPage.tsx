@@ -81,6 +81,7 @@ const SettingsPage: React.FC = () => {
 
   const handleSaveProfile = async () => {
     try {
+      console.log('Updating profile...', profileData);
       const response = await userApi.updateProfile({
         username: profileData.username,
         email: profileData.email,
@@ -88,43 +89,54 @@ const SettingsPage: React.FC = () => {
         bio: profileData.bio
       });
 
+      console.log('Profile update response:', response);
+
       if (response.success) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } else {
-        alert(response.message || 'Failed to update profile');
+        alert(`Failed to update profile: ${response.message || response.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile');
+      alert(`Failed to update profile: ${error.message || 'Network error'}`);
     }
   };
 
   const handleSaveNotifications = async () => {
     try {
-      const response = await userApi.updateSettings({
+      const settingsData = {
         emailNotifications: notifications.emailPicks || notifications.emailResults || notifications.emailWeekly,
         pushNotifications: notifications.pushPicks || notifications.pushLive || notifications.pushLeaderboard,
         matchUpdates: notifications.pushLive,
         predictionAlerts: notifications.emailPicks || notifications.pushPicks,
         achievementAlerts: notifications.pushLeaderboard,
         marketingEmails: notifications.emailWeekly
-      });
+      };
+
+      console.log('Updating notifications...', settingsData);
+      console.log('API URL:', import.meta.env.VITE_API_URL);
+
+      const response = await userApi.updateSettings(settingsData);
+
+      console.log('Notifications update response:', response);
 
       if (response.success) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } else {
-        alert(response.message || 'Failed to update notifications');
+        console.error('API Error:', response);
+        alert(`Failed to update notifications: ${response.message || response.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating notifications:', error);
-      alert('Failed to update notifications');
+      alert(`Failed to update notifications: ${error.message || 'Network error. Please check your connection.'}`);
     }
   };
 
   const handleSavePreferences = async () => {
     try {
+      console.log('Updating preferences...', preferences);
       const response = await userApi.updateSettings({
         theme: preferences.theme,
         language: preferences.language,
@@ -133,15 +145,17 @@ const SettingsPage: React.FC = () => {
         defaultStake: preferences.defaultStake
       });
 
+      console.log('Preferences update response:', response);
+
       if (response.success) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } else {
-        alert(response.message || 'Failed to update preferences');
+        alert(`Failed to update preferences: ${response.message || response.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating preferences:', error);
-      alert('Failed to update preferences');
+      alert(`Failed to update preferences: ${error.message || 'Network error'}`);
     }
   };
 
