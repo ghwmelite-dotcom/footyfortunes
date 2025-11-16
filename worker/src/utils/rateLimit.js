@@ -67,7 +67,7 @@ export async function checkRateLimit(env, request, limitType = 'api', userId = n
         count: 1,
         windowStart: now
       }), {
-        expirationTtl: Math.ceil(config.windowMs / 1000)
+        expirationTtl: Math.max(60, Math.ceil(config.windowMs / 1000)) // KV requires min 60 seconds
       });
 
       return {
@@ -85,7 +85,7 @@ export async function checkRateLimit(env, request, limitType = 'api', userId = n
         count: 1,
         windowStart: now
       }), {
-        expirationTtl: Math.ceil(config.windowMs / 1000)
+        expirationTtl: Math.max(60, Math.ceil(config.windowMs / 1000)) // KV requires min 60 seconds
       });
 
       return {
@@ -114,7 +114,7 @@ export async function checkRateLimit(env, request, limitType = 'api', userId = n
       count: newCount,
       windowStart: data.windowStart
     }), {
-      expirationTtl: Math.ceil((data.windowStart + config.windowMs - now) / 1000)
+      expirationTtl: Math.max(60, Math.ceil((data.windowStart + config.windowMs - now) / 1000)) // KV requires min 60 seconds
     });
 
     return {
