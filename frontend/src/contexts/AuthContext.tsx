@@ -95,18 +95,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      console.log('Attempting login for:', credentials.email);
       const response = await authApi.login(credentials);
+      console.log('Login response:', response);
+      console.log('Has access token:', !!response.accessToken);
+      console.log('Has refresh token:', !!response.refreshToken);
+      console.log('Has user:', !!response.user);
 
       if (response.success && response.user) {
+        console.log('Login successful, setting user:', response.user);
         setUser(response.user);
         setIsLoading(false);
+
+        // Verify token was stored
+        setTimeout(() => {
+          console.log('Token in localStorage:', !!localStorage.getItem('token'));
+          console.log('Refresh token in localStorage:', !!localStorage.getItem('refreshToken'));
+        }, 100);
+
         return true;
       } else {
+        console.error('Login failed:', response);
         setError(response.error || 'Login failed');
         setIsLoading(false);
         return false;
       }
     } catch (err) {
+      console.error('Login exception:', err);
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
       setIsLoading(false);
